@@ -22,7 +22,7 @@ object Connection {
                 val initContext: Context = InitialContext()
                 val envContext = initContext.lookup("java:/comp/env") as Context
                 ds =
-                    envContext.lookup("jdbc/flares") as DataSource?
+                    envContext.lookup("jdbc/flare") as DataSource?
             }
 
             ds!!.connection

@@ -1,2 +1,3 @@
 rootProject.name = 'flare-telegram-bot'
-
+include 'telegram-api'
+project(':telegram-api').projectDir = new File("/home/theapache64/Documents/projects/codoc19/telegram-api")
