@@ -1,3 +1,5 @@
+![](demo.gif)
+
 # Flare 🎆
 
 Play with your friends' flashlight using Telegram 😜 
