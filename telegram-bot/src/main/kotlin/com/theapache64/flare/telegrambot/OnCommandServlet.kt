@@ -4,6 +4,7 @@ import com.teamxenox.telegramapi.Telegram
 import com.teamxenox.telegramapi.models.SendMessageRequest
 import com.teamxenox.telegramapi.models.Update
 import java.lang.Exception
+import java.lang.IllegalArgumentException
 import javax.servlet.annotation.WebServlet
 import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
@@ -18,6 +19,7 @@ class OnCommandServlet : HttpServlet() {
         private const val COMMAND_START = "/start"
         private const val COMMAND_SET_GROUP = "/set"
         private const val COMMAND_ON = "/on"
+        private const val COMMAND_OFF = "/off"
         private const val MSG_SET_GROUP_HELP = "Please reply to this message with your group name"
     }
 
@@ -30,6 +32,7 @@ class OnCommandServlet : HttpServlet() {
         val text = message.text.trim()
         val chatId = message.chat.id
         val replyMsgId = message.messageId
+        println("Text is $text")
         try {
             when (text) {
                 COMMAND_HELP, COMMAND_START -> {
@@ -53,6 +56,26 @@ class OnCommandServlet : HttpServlet() {
                             replyMarkup = SendMessageRequest.ReplyMarkup(isForceReply = true)
                         )
                     )
+                }
+
+                COMMAND_ON,
+                COMMAND_OFF -> {
+                    val fromUserId = message.from.id.toString()
+                    val user = Users.get(Users.COLUMN_TGM_ID, fromUserId)
+                    if (user == null) {
+                        // no group attached
+                        telegram.sendMessage(
+                            SendMessageRequest(
+                                chatId,
+                                text = "No group associated with your account. Set your group name by /set command",
+                                replyMsgId = replyMsgId
+                            )
+                        )
+                    } else {
+                        // turn on the bulb
+                        val isFlash = text == COMMAND_ON
+                        setFlash(isFlash, user.groupName)
+                    }
                 }
 
                 else -> {
@@ -85,74 +108,93 @@ class OnCommandServlet : HttpServlet() {
     ) {
 
         val fromUserId = message.from.id.toString()
-
-        when (message.replyToMessage!!.text) {
+        when (val replyMsgFor = message.replyToMessage!!.text) {
 
             MSG_SET_GROUP_HELP -> {
-                println("Setting group name")
-                // Setting group
-                val user = Users.get(Users.COLUMN_TGM_ID, fromUserId)
-                try {
-                    if (user == null) {
-                        println("Adding user...")
-                        // adding user and setting group name
-                        Users.addv3(
-                            User(
-                                tgmId = fromUserId,
-                                groupName = text
-                            )
-                        )
-                    } else {
-                        println("Updating user...")
-                        // setting group name
-                        Users.update(
-                            Users.COLUMN_TGM_ID,
-                            fromUserId,
-                            Users.COLUMN_GROUP_NAME,
-                            text
-                        )
-                    }
-
-                    telegram.sendMessage(
-                        SendMessageRequest(
-                            chatId = chatId,
-                            text = "👍 Group name set to `$text`, Now you can call /on 😉"
-                        )
-                    )
-                } catch (e: DuplicateGroupNameException) {
-                    println("Group name already exists")
-                    telegram.sendMessage(
-                        SendMessageRequest(
-                            chatId = chatId,
-                            text = "Group name `$text` exists. Try something else",
-                            replyMsgId = message.replyToMessage!!.messageId,
-                            replyMarkup = SendMessageRequest.ReplyMarkup(isForceReply = true)
-                        )
-                    )
-                }
-            }
-
-            COMMAND_ON -> {
-                val user = Users.get(Users.COLUMN_TGM_ID, fromUserId)
-                if (user == null) {
-                    // no group attached
-                    telegram.sendMessage(
-                        SendMessageRequest(
-                            chatId,
-                            text = "No group associated with your account. Set your group name by /set command",
-                            replyMsgId = replyMsgId
-                        )
-                    )
-                }else{
-                    // turn on the bulb
-
-                }
+                setGroupName(fromUserId, text, chatId, message)
             }
 
             else -> {
-                sendinvalidCommand(chatId, text, replyMsgId)
+                if (replyMsgFor.startsWith("Group name ") and replyMsgFor.endsWith(" Try something else")) {
+                    setGroupName(fromUserId, text, chatId, message)
+                } else {
+                    sendinvalidCommand(chatId, text, replyMsgId)
+                }
             }
         }
+    }
+
+    private fun setGroupName(
+        fromUserId: String,
+        _text: String,
+        chatId: Long,
+        message: Update.Message
+    ) {
+        val text = _text.toLowerCase()
+        if (text.contains(" ")) {
+            throw IllegalArgumentException("Group name can't have spaces 😥")
+        }
+
+        println("Setting group name")
+        // Setting group
+        val user = Users.get(Users.COLUMN_TGM_ID, fromUserId)
+        try {
+            if (user == null) {
+                println("Adding user...")
+                // adding user and setting group name
+                Users.addv3(
+                    User(
+                        tgmId = fromUserId,
+                        groupName = text
+                    )
+                )
+            } else {
+                println("Updating user...")
+                // setting group name
+                Users.update(
+                    Users.COLUMN_TGM_ID,
+                    fromUserId,
+                    Users.COLUMN_GROUP_NAME,
+                    text
+                )
+            }
+
+            telegram.sendMessage(
+                SendMessageRequest(
+                    chatId = chatId,
+                    text = "👍 Group name set to `$text`, Now you can call /on 😉"
+                )
+            )
+        } catch (e: DuplicateGroupNameException) {
+            println("Group name already exists")
+            telegram.sendMessage(
+                SendMessageRequest(
+                    chatId = chatId,
+                    text = "Group name `$text` exists. Try something else",
+                    replyMsgId = message.replyToMessage!!.messageId,
+                    replyMarkup = SendMessageRequest.ReplyMarkup(isForceReply = true)
+                )
+            )
+        }
+    }
+
+    private fun setFlash(isFlash: Boolean, groupName: String) {
+        val command = """
+            curl -s -X POST \
+              https://fcm.googleapis.com/fcm/send \
+              -H 'authorization: key=AAAAwLZSTlE:APA91bG8NK2kF5BpoqM-EDsq1wMt8CfKdYr-QU-aEUfHEsMr7LKeAaHh17L-Lj3KL_zRgnz6I2N1fAtg-kyRyYzjJpXrcdpveQLdLawWBZQhvla4xhINBeUOSm2HH55F8Q2VUSZPluCUoq5ELT_4TA1UvNfzkQbYZg' \
+              -H 'cache-control: no-cache' \
+              -H 'content-type: application/json' \
+              -H 'postman-token: a428dbbf-1f71-5016-9251-a4dce9773e5a' \
+              -d '{
+              "to": "/topics/$groupName",
+              "data": {
+                "is_flash":$isFlash
+               }
+            }'
+        """.trimIndent()
+
+        SimpleCommandExecutor.executeCommand(command, true)
     }
 
     private fun sendinvalidCommand(chatId: Long, text: String, replyMsgId: Long) {

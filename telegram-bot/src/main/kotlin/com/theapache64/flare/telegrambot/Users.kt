@@ -3,7 +3,6 @@ package com.theapache64.flare.telegrambot
 import com.theapache64.dbbase.BaseTable
 import com.theapache64.dbbase.querybuilders.AddQueryBuilder
 import com.theapache64.dbbase.querybuilders.SelectQueryBuilder
-import java.sql.ResultSet
 import java.sql.SQLException
 
 object Users : BaseTable<User>("users") {
@@ -20,11 +19,33 @@ object Users : BaseTable<User>("users") {
                 .toString()
         } catch (e: SQLException) {
             e.printStackTrace()
-            if (e.message!!.contains("duplicate")) {
-                throw DuplicateGroupNameException()
-            } else {
-                throw e
-            }
+            handleDuplicateGroupName(e)
+            return null
+        }
+    }
+
+    @Throws(DuplicateGroupNameException::class, SQLException::class)
+    private fun handleDuplicateGroupName(e: Exception) {
+        val msg = e.message!!.toLowerCase()
+        if ((msg.contains("duplicate entry") && msg.contains(COLUMN_GROUP_NAME) ||
+                    msg == ("failed to update $COLUMN_GROUP_NAME"))
+        ) {
+            throw DuplicateGroupNameException()
+        } else {
+            throw e
+        }
+    }
+
+    override fun update(
+        whereColumn: String?,
+        whereColumnValue: String?,
+        updateColumn: String?,
+        newUpdateColumnValue: String?
+    ) {
+        try {
+            super.update(whereColumn, whereColumnValue, updateColumn, newUpdateColumnValue)
+        } catch (e: Exception) {
+            handleDuplicateGroupName(e)
         }
     }
 
