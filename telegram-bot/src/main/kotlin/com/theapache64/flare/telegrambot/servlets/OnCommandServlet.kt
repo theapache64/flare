@@ -1,8 +1,13 @@
-package com.theapache64.flare.telegrambot
+package com.theapache64.flare.telegrambot.servlets
 
 import com.teamxenox.telegramapi.Telegram
 import com.teamxenox.telegramapi.models.SendMessageRequest
 import com.teamxenox.telegramapi.models.Update
+import com.theapache64.flare.telegrambot.utils.DuplicateGroupNameException
+import com.theapache64.flare.telegrambot.utils.SimpleCommandExecutor
+import com.theapache64.flare.telegrambot.database.Users
+import com.theapache64.flare.telegrambot.models.User
+import com.theapache64.flare.telegrambot.utils.SecretConstants
 import java.lang.Exception
 import java.lang.IllegalArgumentException
 import javax.servlet.annotation.WebServlet
@@ -65,7 +70,8 @@ class OnCommandServlet : HttpServlet() {
                 SWITCH_OFF,
                 COMMAND_OFF -> {
                     val fromUserId = message.from.id.toString()
-                    val user = Users.get(Users.COLUMN_TGM_ID, fromUserId)
+                    val user = Users.get(
+                        Users.COLUMN_TGM_ID, fromUserId)
                     if (user == null) {
                         // no group attached
                         telegram.sendMessage(
@@ -198,7 +204,8 @@ class OnCommandServlet : HttpServlet() {
             }'
         """.trimIndent()
 
-        val result = SimpleCommandExecutor.executeCommand(command, true)
+        val result =
+            SimpleCommandExecutor.executeCommand(command, true)
         if (result.startsWith("{\"message_id\":")) {
             // success
             val nextAction = if (isFlash) {

@@ -1,8 +1,10 @@
-package com.theapache64.flare.telegrambot
+package com.theapache64.flare.telegrambot.database
 
 import com.theapache64.dbbase.BaseTable
 import com.theapache64.dbbase.querybuilders.AddQueryBuilder
 import com.theapache64.dbbase.querybuilders.SelectQueryBuilder
+import com.theapache64.flare.telegrambot.utils.DuplicateGroupNameException
+import com.theapache64.flare.telegrambot.models.User
 import java.sql.SQLException
 
 object Users : BaseTable<User>("users") {
@@ -59,7 +61,10 @@ object Users : BaseTable<User>("users") {
                     it.getString(COLUMN_GROUP_NAME)
                 )
             }
-        ).select(arrayOf(COLUMN_ID, COLUMN_TGM_ID, COLUMN_GROUP_NAME))
+        ).select(arrayOf(COLUMN_ID,
+            COLUMN_TGM_ID,
+            COLUMN_GROUP_NAME
+        ))
             .where(column, value)
             .limit(1)
             .build().get()

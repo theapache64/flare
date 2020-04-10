@@ -1,4 +1,4 @@
-package com.theapache64.flare.telegrambot
+package com.theapache64.flare.telegrambot.models
 
 class User(
     val id: String? = null,

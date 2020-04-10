@@ -1,4 +1,4 @@
-package com.theapache64.flare.telegrambot
+package com.theapache64.flare.telegrambot.utils
 
 import java.io.BufferedReader
 import java.io.IOException
@@ -11,11 +11,17 @@ object SimpleCommandExecutor {
 
 
     @Throws(IOException::class)
-    fun executeCommand(command: String): String = executeCommand(command, false)
+    fun executeCommand(command: String): String =
+        executeCommand(command, false)
 
     @Throws(IOException::class)
     fun executeCommand(command: String, isLivePrint: Boolean): String =
-        executeCommands(arrayOf(command), isLivePrint, false, isReturnAll = false).joinToString(separator = "\n")
+        executeCommands(
+            arrayOf(command),
+            isLivePrint,
+            false,
+            isReturnAll = false
+        ).joinToString(separator = "\n")
 
 
     @Throws(IOException::class)
@@ -25,7 +31,12 @@ object SimpleCommandExecutor {
         isSuppressError: Boolean,
         isReturnAll: Boolean
     ): String =
-        executeCommands(arrayOf(command), isLivePrint, isSuppressError, isReturnAll).joinToString(separator = "\n")
+        executeCommands(
+            arrayOf(command),
+            isLivePrint,
+            isSuppressError,
+            isReturnAll
+        ).joinToString(separator = "\n")
 
 
     /**
