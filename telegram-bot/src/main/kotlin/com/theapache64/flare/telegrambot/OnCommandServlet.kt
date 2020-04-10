@@ -20,6 +20,8 @@ class OnCommandServlet : HttpServlet() {
         private const val COMMAND_SET_GROUP = "/set"
         private const val COMMAND_ON = "/on"
         private const val COMMAND_OFF = "/off"
+        private const val SWITCH_ON = "💡 ON"
+        private const val SWITCH_OFF = "📴 OFF"
         private const val MSG_SET_GROUP_HELP = "Please reply to this message with your group name"
     }
 
@@ -59,6 +61,8 @@ class OnCommandServlet : HttpServlet() {
                 }
 
                 COMMAND_ON,
+                SWITCH_ON,
+                SWITCH_OFF,
                 COMMAND_OFF -> {
                     val fromUserId = message.from.id.toString()
                     val user = Users.get(Users.COLUMN_TGM_ID, fromUserId)
@@ -73,8 +77,8 @@ class OnCommandServlet : HttpServlet() {
                         )
                     } else {
                         // turn on the bulb
-                        val isFlash = text == COMMAND_ON
-                        setFlash(isFlash, user.groupName)
+                        val isFlash = text == COMMAND_ON || text == SWITCH_ON
+                        setFlash(chatId, replyMsgId, isFlash, user.groupName)
                     }
                 }
 
@@ -178,7 +182,7 @@ class OnCommandServlet : HttpServlet() {
         }
     }
 
-    private fun setFlash(isFlash: Boolean, groupName: String) {
+    private fun setFlash(chatId: Long, replyMsgId: Long, isFlash: Boolean, groupName: String) {
         val command = """
             curl -s -X POST \
               https://fcm.googleapis.com/fcm/send \
@@ -194,7 +198,42 @@ class OnCommandServlet : HttpServlet() {
             }'
         """.trimIndent()
 
-        SimpleCommandExecutor.executeCommand(command, true)
+        val result = SimpleCommandExecutor.executeCommand(command, true)
+        if (result.startsWith("{\"message_id\":")) {
+            // success
+            val nextAction = if (isFlash) {
+                SWITCH_OFF
+            } else {
+                SWITCH_ON
+            }
+
+            telegram.sendMessage(
+                SendMessageRequest(
+                    chatId,
+                    text = "👉 Flash -> ${if (isFlash) "ON" else "OFF"}",
+                    replyMsgId = replyMsgId,
+                    replyMarkup = SendMessageRequest.ReplyMarkup(
+                        inlineKeyboard = null,
+                        isForceReply = false,
+                        isOneTime = true,
+                        keyboard = listOf(
+                            listOf(
+                                SendMessageRequest.KeyboardButton(nextAction)
+                            )
+                        )
+                    )
+                )
+            )
+
+        } else {
+            // failed
+            telegram.sendMessage(
+                SendMessageRequest(
+                    chatId = chatId,
+                    text = "Ohh no, it failed. \nAre you sure you installed the Android app and you subscribed to the group ? 🤔"
+                )
+            )
+        }
     }
 
     private fun sendinvalidCommand(chatId: Long, text: String, replyMsgId: Long) {
