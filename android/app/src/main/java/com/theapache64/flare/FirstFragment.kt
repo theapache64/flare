@@ -1,13 +1,17 @@
 package com.theapache64.flare
 
 import android.Manifest
+import android.content.DialogInterface
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.google.firebase.messaging.FirebaseMessaging
 import com.karumi.dexter.Dexter
@@ -30,10 +34,31 @@ class FirstFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_first, container, false)
     }
 
+    private val textWatcher = object : TextWatcher {
+        override fun afterTextChanged(s: Editable?) {
+        }
+
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+
+        }
+
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            etGroupName.removeTextChangedListener(this)
+            val newText = etGroupName.text.toString()
+                .toLowerCase()
+                .replace(" ", "_")
+            etGroupName.setText(newText)
+            etGroupName.setSelection(newText.length)
+            etGroupName.addTextChangedListener(this)
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        this.etGroupName = view.findViewById<EditText>(R.id.et_group_name)
+        this.etGroupName = view.findViewById(R.id.et_group_name)
+        this.etGroupName.addTextChangedListener(textWatcher)
+
         view.findViewById<Button>(R.id.b_subscribe).setOnClickListener {
 
             Dexter.withActivity(activity)
@@ -70,6 +95,15 @@ class FirstFragment : Fragment() {
 
     private fun subscribe(groupName: String) {
         FirebaseMessaging.getInstance().subscribeToTopic(groupName)
-        Toast.makeText(activity!!, "Subscribed to $groupName", Toast.LENGTH_SHORT).show();
+        AlertDialog.Builder(activity!!)
+            .setTitle(R.string.dialog_title_subscribed)
+            .setMessage("Subscribed to `$groupName`")
+            .setCancelable(false)
+            .setPositiveButton("OK") { dialogInterface: DialogInterface, i: Int ->
+                etGroupName.setText("")
+                dialogInterface.dismiss()
+            }
+            .create()
+            .show()
     }
 }
